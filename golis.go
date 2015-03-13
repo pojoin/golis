@@ -134,7 +134,7 @@ func unpack(buffer []byte, readerChannel chan []byte) []byte {
 //协议中查看协议头是否满足一个协议报
 func getReadyData(buffer []byte) ([]byte, []byte, error) {
 	length := len(buffer)
-	Log("length = ", length)
+	//	Log("length = ", length)
 	if length >= 4 {
 		totalLen := BytesToInt(buffer[0:4]) //get totalLen
 		if totalLen == 0 {
