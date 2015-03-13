@@ -13,15 +13,10 @@ import (
 //系统变量定义
 
 var (
-	GolisHandler IoHandler //事件处理
-	GolisMsg     Message   //消息协议
+	GolisHandler IoHandler                //事件处理
+	Unpacket     func([]byte) interface{} //拆包
+	Packet       func(interface{}) []byte //封包
 )
-
-//消息协议
-type Message interface {
-	Unpacket([]byte) interface{}
-	Packet(interface{}) []byte
-}
 
 //定义session
 type Iosession struct {
@@ -32,7 +27,7 @@ type Iosession struct {
 func (this *Iosession) Write(message *interface{}) {
 	//触发消息发送事件
 	GolisHandler.MessageSent(this, message)
-	data := GolisMsg.Packet(message)
+	data := Packet(message)
 	totalLen := len(data)
 	this.conn.Write(append(IntToBytes(totalLen), data...))
 }
@@ -119,7 +114,7 @@ func getReadyData(buffer []byte) ([]byte, []byte, error) {
 
 //从准备好的数据读取
 func readFromData(session *Iosession, data []byte) {
-	message := GolisMsg.Unpacket(data) //拆包
+	message := Unpacket(data) //拆包
 	//收到消息时到达
 	GolisHandler.MessageReceived(session, message)
 }
