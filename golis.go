@@ -24,7 +24,7 @@ type Iosession struct {
 }
 
 //session写入数据
-func (this *Iosession) Write(message *interface{}) {
+func (this *Iosession) Write(message interface{}) {
 	//触发消息发送事件
 	GolisHandler.MessageSent(this, message)
 	data := Packet(message)
