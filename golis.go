@@ -13,9 +13,9 @@ import (
 //系统变量定义
 
 var (
-	GolisHandler IoHandler                 //事件处理
-	Unpacket     func([]byte) interface{}  //拆包
-	Packet       func(*interface{}) []byte //封包
+	GolisHandler IoHandler                //事件处理
+	Unpacket     func([]byte) interface{} //拆包
+	Packet       func(interface{}) []byte //封包
 )
 
 //定义session
@@ -24,7 +24,7 @@ type Iosession struct {
 }
 
 //session写入数据
-func (this *Iosession) Write(message *interface{}) {
+func (this *Iosession) Write(message interface{}) {
 	//触发消息发送事件
 	GolisHandler.MessageSent(this, message)
 	data := Packet(message)
