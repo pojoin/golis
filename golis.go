@@ -183,7 +183,7 @@ func BytesToInt(b []byte) int {
 }
 
 //整形64转换成字节
-func Int64ToBytes(n int) []byte {
+func Int64ToBytes(n int64) []byte {
 	x := int64(n)
 
 	bytesBuffer := bytes.NewBuffer([]byte{})
@@ -202,7 +202,7 @@ func BytesToInt64(b []byte) int {
 }
 
 //整形64转换成字节
-func Int8ToBytes(n int) []byte {
+func Int8ToBytes(n int8) []byte {
 	x := int8(n)
 
 	bytesBuffer := bytes.NewBuffer([]byte{})
