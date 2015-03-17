@@ -32,6 +32,12 @@ func (this *Iosession) Write(message interface{}) {
 	this.conn.Write(append(IntToBytes(totalLen), data...))
 }
 
+//关闭连接
+func (this *Iosession) Close() {
+	GolisHandler.SessionClosed(this)
+	this.conn.Close()
+}
+
 //事件触发接口定义
 type IoHandler interface {
 	//session打开
@@ -58,6 +64,7 @@ func Run(netPro, laddr string) {
 		if err != nil {
 			continue
 		}
+		defer conn.Close()
 		go connectHandle(conn)
 	}
 }
@@ -96,8 +103,6 @@ func connectHandle(conn net.Conn) {
 			GolisHandler.SessionClosed(&session)
 			flag = false
 			break
-		default:
-			Log("none")
 		}
 	}
 
