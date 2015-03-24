@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io"
 	"net"
 	"os"
 )
@@ -64,13 +63,13 @@ func Run(netPro, laddr string) {
 		if err != nil {
 			continue
 		}
-		defer conn.Close()
 		go connectHandle(conn)
 	}
 }
 
 //处理新连接
 func connectHandle(conn net.Conn) {
+	defer conn.Close()
 	//声明一个临时缓冲区，用来存储被截断的数据
 	tmpBuffer := make([]byte, 0)
 	buffer := make([]byte, 1024)
@@ -82,26 +81,23 @@ func connectHandle(conn net.Conn) {
 	//触发sessionCreated事件
 	GolisHandler.SessionOpened(&session)
 
-	go reader(&session, readerChannel)
+	exitChan := make(chan bool, 0)
+	go reader(&session, readerChannel, exitChan)
 
 	flag := true
 	for flag {
+
 		n, err := conn.Read(buffer)
-		switch err {
-		case nil:
-			//			tmp, data, err := getReadyData(append(tmpBuffer, buffer[:n]...))
-			//			tmpBuffer = tmp
-			//			if err != nil {
-			//				Log(err.Error())
-			//			} else {
-			//				readFromData(&session, data)
-			//			}
+		//Log(time.Now().Unix(), "tmpBuffer.len:", len(tmpBuffer), "tmpBuffer.cap:", cap(tmpBuffer), "n:", n)
+
+		if err == nil {
 			tmpBuffer = unpack(append(tmpBuffer, buffer[:n]...), readerChannel)
-		case io.EOF:
+		} else {
 			Log("client is disconnected")
 			//session关闭
 			GolisHandler.SessionClosed(&session)
 			flag = false
+			exitChan <- true
 			break
 		}
 	}
@@ -131,6 +127,7 @@ func unpack(buffer []byte, readerChannel chan []byte) []byte {
 	}
 
 	if i == length {
+		buffer = nil
 		return make([]byte, 0)
 	}
 	return buffer[i:]
@@ -152,11 +149,13 @@ func getReadyData(buffer []byte) ([]byte, []byte, error) {
 	return buffer, nil, errors.New("msg is not ready")
 }
 
-func reader(session *Iosession, readerChannel chan []byte) {
+func reader(session *Iosession, readerChannel chan []byte, exitChan chan bool) {
 	for {
 		select {
 		case data := <-readerChannel:
 			readFromData(session, data)
+		case <-exitChan:
+			break
 		}
 	}
 }
