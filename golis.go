@@ -129,7 +129,9 @@ func unpack(buffer []byte, readerChannel chan []byte) []byte {
 		if length < i+constDataLength+messageLength {
 			break
 		}
-		data := buffer[i+constDataLength : i+constDataLength+messageLength]
+		data := make([]byte, messageLength)
+		copy(data, buffer[i+constDataLength:i+constDataLength+messageLength])
+		//		data := buffer[i+constDataLength : i+constDataLength+messageLength]
 		readerChannel <- data
 		i += constDataLength + messageLength - 1
 	}
