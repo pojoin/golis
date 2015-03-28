@@ -19,7 +19,8 @@ var (
 
 //定义session
 type Iosession struct {
-	conn net.Conn
+	SesionId   int      //session唯一表示
+	Connection net.Conn //连接
 }
 
 //session写入数据
@@ -28,13 +29,13 @@ func (this *Iosession) Write(message interface{}) {
 	GolisHandler.MessageSent(this, message)
 	data := Packet(message)
 	totalLen := len(data)
-	this.conn.Write(append(IntToBytes(totalLen), data...))
+	this.Connection.Write(append(IntToBytes(totalLen), data...))
 }
 
 //关闭连接
 func (this *Iosession) Close() {
 	GolisHandler.SessionClosed(this)
-	this.conn.Close()
+	this.Connection.Close()
 }
 
 //事件触发接口定义
@@ -77,7 +78,7 @@ func connectHandle(conn net.Conn) {
 	//声明一个管道用于接收解包的数据
 	readerChannel := make(chan []byte, 16)
 	//创建session
-	session := Iosession{conn}
+	session := Iosession{Connection: conn}
 	//触发sessionCreated事件
 	GolisHandler.SessionOpened(&session)
 
