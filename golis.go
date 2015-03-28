@@ -50,7 +50,7 @@ type IoHandler interface {
 	MessageSent(session *Iosession, message interface{})
 }
 
-//运行golis
+//服务器端运行golis
 //netPro：运行协议参数，tcp/udp
 //laddr ：程序监听ip和端口，如127.0.0.1:8080
 func Run(netPro, laddr string) {
@@ -66,6 +66,13 @@ func Run(netPro, laddr string) {
 		}
 		go connectHandle(conn)
 	}
+}
+
+//客户端程序连接服务器
+func Dial(netPro, laddr string) {
+	conn, err := net.Dial(netPro, laddr)
+	CheckError(err)
+	go connectHandle(conn)
 }
 
 //处理新连接
