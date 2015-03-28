@@ -186,6 +186,21 @@ func BytesToInt(b []byte) int {
 	return int(x)
 }
 
+//整形32转换成字节数据
+func Int32ToBytes(n int32) []byte {
+	bytesBuffer := bytes.NewBuffer([]byte{})
+	binary.Write(bytesBuffer, binary.BigEndian, n)
+	return bytesBuffer.Bytes()
+}
+
+//字节转换成整形int32
+func BytesToint32(b []byte) int32 {
+	bytesBuffer := bytes.NewBuffer(b)
+	var x int32
+	binary.Read(bytesBuffer, binary.BigEndian, &x)
+	return x
+}
+
 //整形64转换成字节
 func Int64ToBytes(n int64) []byte {
 	x := int64(n)
