@@ -101,7 +101,7 @@ func connectHandle(conn net.Conn) {
 		if err == nil {
 			tmpBuffer = unpack(append(tmpBuffer, buffer[:n]...), readerChannel)
 		} else {
-			Log("client is disconnected")
+			//			Log("client is disconnected")
 			//session关闭
 			GolisHandler.SessionClosed(&session)
 			flag = false
