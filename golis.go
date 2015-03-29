@@ -36,7 +36,7 @@ type Package interface {
 	//connData 从连接当中读取数据
 	//packageChan 准备好包后交给该chan
 	//remain 读取connData的剩余数据返回
-	ReadConnData(connData []byte, packageChan chan []byte) (remain []byte)
+	ReadConnData(connData []byte, packageChan chan<- []byte) (remain []byte)
 	//拆包函数
 	Unpacket(data []byte) interface{}
 	//封包函数
@@ -121,7 +121,7 @@ func connectHandle(conn net.Conn) {
 }
 
 //等待数据包
-func waitData(session *Iosession, readerChannel chan []byte, exitChan chan bool) {
+func waitData(session *Iosession, readerChannel <-chan []byte, exitChan chan bool) {
 	for {
 		select {
 		case data := <-readerChannel:
