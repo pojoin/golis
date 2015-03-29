@@ -122,7 +122,7 @@ func connectHandle(conn net.Conn) {
 }
 
 //等待数据包
-func waitData(session *Iosession, readerChannel <-chan []byte, exitChan chan bool) {
+func waitData(session *Iosession, readerChannel chan []byte, exitChan chan bool) {
 	for {
 		select {
 		case data := <-readerChannel:
