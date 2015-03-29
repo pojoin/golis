@@ -92,7 +92,7 @@ func connectHandle(conn net.Conn) {
 	buffer := make([]byte, 512)
 
 	//声明一个管道用于接收解包的数据
-	readerChannel := make(chan []byte, 8)
+	readerChannel := make(chan []byte, 16)
 	//创建session
 	session := Iosession{Connection: conn}
 	//触发sessionCreated事件
