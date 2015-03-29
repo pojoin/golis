@@ -59,12 +59,13 @@ type IoHandler interface {
 //netPro：运行协议参数，tcp/udp
 //laddr ：程序监听ip和端口，如127.0.0.1:8080
 func Run(netPro, laddr string) {
+	log.Println("golis is listen port:", laddr)
 	netLis, err := net.Listen(netPro, laddr)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	defer netLis.Close()
-	log.Println("等待客户端连接...")
+	log.Println("waiting clients...")
 	for {
 		conn, err := netLis.Accept()
 		if err != nil {
