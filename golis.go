@@ -86,7 +86,12 @@ func Dial(netPro, laddr string) {
 
 //处理新连接
 func connectHandle(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println(err)
+		}
+		conn.Close()
+	}()
 	//声明一个临时缓冲区，用来存储被截断的数据
 	tmpBuffer := make([]byte, 0)
 	buffer := make([]byte, 512)
