@@ -8,7 +8,7 @@ import (
 //系统变量定义
 var (
 	GolisHandler IoHandler //事件处理
-	GolisPackage Package   //拆包封包处理接口
+	GolisPackage Packager  //拆包封包处理接口
 )
 
 //定义session
@@ -31,7 +31,7 @@ func (this *Iosession) Close() {
 }
 
 //拆包封包接口定义
-type Package interface {
+type Packager interface {
 	//读取连接数据
 	//connData 从连接当中读取数据
 	//packageChan 准备好包后交给该chan
