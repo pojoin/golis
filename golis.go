@@ -33,10 +33,8 @@ func (this *Iosession) Close() {
 //拆包封包接口定义
 type Packager interface {
 	//读取连接数据
-	//connData 从连接当中读取数据
 	//packageChan 准备好包后交给该chan
-	//remain 读取connData的剩余数据返回
-	ReadConnData(connData []byte, packageChan chan<- []byte) (remain []byte)
+	ReadConnData(buffer *Buffer, packageChan chan<- []byte)
 	//拆包函数
 	Unpacket(data []byte) interface{}
 	//封包函数
@@ -93,7 +91,7 @@ func connectHandle(conn net.Conn) {
 		conn.Close()
 	}()
 	//声明一个临时缓冲区，用来存储被截断的数据
-	tmpBuffer := make([]byte, 0)
+	ioBuffer := NewBuffer()
 	buffer := make([]byte, 512)
 
 	//声明一个管道用于接收解包的数据
@@ -109,11 +107,11 @@ func connectHandle(conn net.Conn) {
 	flag := true
 	for flag {
 
-		n, err := conn.Read(buffer)
+		_, err := conn.Read(buffer)
 		//Log(time.Now().Unix(), "tmpBuffer.len:", len(tmpBuffer), "tmpBuffer.cap:", cap(tmpBuffer), "n:", n)
-
+		ioBuffer.putBytes(buffer)
 		if err == nil {
-			tmpBuffer = GolisPackage.ReadConnData(append(tmpBuffer, buffer[:n]...), readerChannel)
+			GolisPackage.ReadConnData(ioBuffer, readerChannel)
 		} else {
 			//			Log("client is disconnected")
 			//session关闭
