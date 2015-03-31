@@ -24,13 +24,26 @@ func (b *Buffer) Cap() int {
 }
 
 //当前可读长度
-func (b *Buffer) Length() int {
-	return b.wOff
+func (b *Buffer) ReadLength() int {
+	return b.wOff - b.rOff
 }
 
-//重置读取位 置
+//重置读取位置
 func (b *Buffer) ResetRead() {
 	b.rOff = 0
+}
+
+//获取读取位置
+func (b *Buffer) GetReadPos() int {
+	return b.rOff
+}
+
+func (b *Buffer) SetReadPos(pos int) error {
+	if pos > b.wOff {
+		return errors.New("ResetReadAt is out of error")
+	}
+	b.rOff = pos
+	return nil
 }
 
 //重置写入位置
