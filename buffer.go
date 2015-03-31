@@ -100,6 +100,17 @@ func (b *Buffer) ReadBytesAt(pos, length int) ([]byte, error) {
 	return buffer, nil
 }
 
+func (b *Buffer) ReadBytes(length int) ([]byte, error) {
+	rpos := b.rOff + length
+	if rpos > b.wOff {
+		return nil, errors.New("ReadBytes out off wOff")
+	}
+	buf := make([]byte, length)
+	copy(buf, b.b[b.rOff:rpos])
+	b.rOff = rpos
+	return buf, nil
+}
+
 //读取int
 func (b *Buffer) ReadInt() (int, error) {
 	rpos := b.rOff + 4
