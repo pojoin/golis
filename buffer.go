@@ -28,7 +28,7 @@ func (b *Buffer) Length() int {
 	return b.wOff
 }
 
-//重置读取位置
+//重置读取位 置
 func (b *Buffer) ResetRead() {
 	b.rOff = 0
 }
