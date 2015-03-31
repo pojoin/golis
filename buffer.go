@@ -23,8 +23,19 @@ func (b *Buffer) Cap() int {
 	return cap(b.b)
 }
 
+//当前可读长度
 func (b *Buffer) Length() int {
 	return b.wOff
+}
+
+//重置读取位置
+func (b *Buffer) ResetRead() {
+	b.rOff = 0
+}
+
+//重置写入位置
+func (b *Buffer) ResetWrite() {
+	b.wOff = 0
 }
 
 //写入bytes数据
