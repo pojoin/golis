@@ -19,12 +19,16 @@ func NewBuffer() *Buffer {
 }
 
 //获取缓存当前容量
-func (b *Buffer) BufferCap() int {
+func (b *Buffer) Cap() int {
 	return cap(b.b)
 }
 
+func (b *Buffer) Length() int {
+	return b.wOff
+}
+
 //写入bytes数据
-func (b *Buffer) putBytes(buffer []byte) {
+func (b *Buffer) PutBytes(buffer []byte) {
 	b.b = append(b.b, buffer...)
 	b.wOff = len(buffer) + b.wOff
 }
@@ -32,7 +36,7 @@ func (b *Buffer) putBytes(buffer []byte) {
 //指定位置写入,如果指定写入位置超出了wOff位置,则抛出异常
 //如果指定位置已经存在数据并写入数据超出wOff位置则覆盖之前数据，wOff变更最新
 //如果指定位置已经存在数据并写入数据没有超出wOff位置则覆盖之前数据，wOff不变
-func (b *Buffer) putBytesAt(pos int, buffer []byte) error {
+func (b *Buffer) PutBytesAt(pos int, buffer []byte) error {
 	willPos := pos + len(buffer)
 	if pos > b.wOff {
 		return errors.New("pos is out of wOff")
@@ -47,23 +51,23 @@ func (b *Buffer) putBytesAt(pos int, buffer []byte) error {
 }
 
 //将int数据存入缓存
-func (b *Buffer) putInt(i int) {
+func (b *Buffer) PutInt(i int) {
 	x := int32(i)
 	bytesBuffer := bytes.NewBuffer([]byte{})
 	binary.Write(bytesBuffer, binary.BigEndian, x)
-	b.putBytes(bytesBuffer.Bytes())
+	b.PutBytes(bytesBuffer.Bytes())
 }
 
 //将uint32数据放入内存
-func (b *Buffer) putUint32(i uint32) {
+func (b *Buffer) PutUint32(i uint32) {
 	bytesBuffer := bytes.NewBuffer([]byte{})
 	binary.Write(bytesBuffer, binary.BigEndian, i)
-	b.putBytes(bytesBuffer.Bytes())
+	b.PutBytes(bytesBuffer.Bytes())
 }
 
 //将字符串存入buffer
-func (b *Buffer) putString(s string) {
-	b.putBytes([]byte(s))
+func (b *Buffer) PutString(s string) {
+	b.PutBytes([]byte(s))
 }
 
 //读取指定位置开始，指定长度的bytes数据

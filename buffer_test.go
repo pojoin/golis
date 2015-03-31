@@ -7,11 +7,11 @@ import (
 
 func TestBuffer(T *testing.T) {
 	buf := NewBuffer()
-	buf.putUint32(123)
-	buf.putUint32(456)
-	buf.putUint32(789)
+	buf.PutUint32(123)
+	buf.PutUint32(456)
+	buf.PutUint32(789)
 	s := "你好，我在测试你3453453453jjjj"
-	buf.putString(s)
+	buf.PutString(s)
 	log.Println(len(s))
 	i, _ := buf.ReadUint32()
 	log.Println("[buf123] = ", i)
