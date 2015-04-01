@@ -38,6 +38,11 @@ func (b *Buffer) GetReadPos() int {
 	return b.rOff
 }
 
+//获取写入位置
+func (b *Buffer) GetWritePos() int {
+	return b.wOff
+}
+
 func (b *Buffer) SetReadPos(pos int) error {
 	if pos > b.wOff {
 		return errors.New("ResetReadAt is out of error")
@@ -53,8 +58,12 @@ func (b *Buffer) ResetWrite() {
 
 //写入bytes数据
 func (b *Buffer) PutBytes(buffer []byte) {
-	b.b = append(b.b, buffer...)
-	b.wOff = len(buffer) + b.wOff
+	wPos := b.wOff + len(buffer)
+	if wPos > len(b.b) {
+		b.b = append(b.b, make([]byte, wPos-len(b.b))...)
+	}
+	copy(b.b[b.wOff:wPos], buffer)
+	b.wOff = wPos
 }
 
 //指定位置写入,如果指定写入位置超出了wOff位置,则抛出异常

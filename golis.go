@@ -107,9 +107,13 @@ func connectHandle(conn net.Conn) {
 	flag := true
 	for flag {
 
-		_, err := conn.Read(buffer)
+		n, err := conn.Read(buffer)
 		//Log(time.Now().Unix(), "tmpBuffer.len:", len(tmpBuffer), "tmpBuffer.cap:", cap(tmpBuffer), "n:", n)
-		ioBuffer.PutBytes(buffer)
+		//		if n <= 0 {
+		//			continue
+		//		}
+		//		log.Println("conn.Read(buf) len :", len(buffer[:n]))
+		ioBuffer.PutBytes(buffer[:n])
 		if err == nil {
 			GolisPackage.ReadConnData(ioBuffer, readerChannel)
 		} else {
