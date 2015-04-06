@@ -126,16 +126,15 @@ func connectHandle(conn net.Conn) {
 	exitChan := make(chan bool)
 	go waitData(&session, readerChannel, exitChan)
 	defer func() {
-
-		conn.Close()
-		ioBuffer = nil
-		//		close(exitChan)
-		//		close(readerChannel)
-		w.Done()
 		if err := recover(); err != nil {
 			log.Println(err)
-			return
 		}
+		conn.Close()
+		ioBuffer = nil
+		buffer = nil
+		close(exitChan)
+		close(readerChannel)
+		w.Done()
 	}()
 
 	for runnable {
