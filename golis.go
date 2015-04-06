@@ -129,12 +129,10 @@ func connectHandle(conn net.Conn) {
 		conn.Close()
 		ioBuffer = nil
 		buffer = nil
-		//		close(exitChan)
-		//		close(readerChannel)
-		w.Done()
 		if err := recover(); err != nil {
 			log.Println(err)
 		}
+		w.Done()
 	}()
 
 	for runnable {
@@ -174,6 +172,7 @@ func resetTimeout(conn net.Conn) {
 func waitData(session *Iosession, readerChannel chan *[]byte, exitChan chan bool) {
 	defer func() {
 		close(exitChan)
+		close(readerChannel)
 		if err := recover(); err != nil {
 			log.Println(err)
 		}
