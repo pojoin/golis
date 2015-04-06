@@ -123,18 +123,22 @@ func connectHandle(conn net.Conn) {
 	//触发sessionCreated事件
 	GolisHandler.SessionOpened(&session)
 
+	exitChan := make(chan bool)
+	go waitData(&session, readerChannel, exitChan)
 	defer func() {
+
+		conn.Close()
+		ioBuffer = nil
+		//		close(exitChan)
+		//		close(readerChannel)
+		w.Done()
 		if err := recover(); err != nil {
 			log.Println(err)
+			return
 		}
-		conn.Close()
-		w.Done()
 	}()
-	exitChan := make(chan bool, 0)
-	go waitData(&session, readerChannel, exitChan)
 
-	flag := true
-	for flag {
+	for runnable {
 
 		n, err := conn.Read(buffer)
 		//设置超时
@@ -145,16 +149,14 @@ func connectHandle(conn net.Conn) {
 		} else {
 			//session已经关闭
 			GolisHandler.SessionClosed(&session)
-			flag = false
 			exitChan <- true
-			break
+			return
 		}
 		if !runnable {
 			//session关闭
 			GolisHandler.SessionClosed(&session)
-			flag = false
 			exitChan <- true
-			break
+			return
 		}
 
 	}
@@ -171,12 +173,18 @@ func resetTimeout(conn net.Conn) {
 
 //等待数据包
 func waitData(session *Iosession, readerChannel chan *[]byte, exitChan chan bool) {
-	for {
+	defer func() {
+		if err := recover(); err != nil {
+			log.Println(err)
+		}
+		close(exitChan)
+	}()
+	for runnable {
 		select {
 		case data := <-readerChannel:
 			readFromData(session, data)
 		case <-exitChan:
-			break
+			return
 		}
 	}
 }
