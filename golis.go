@@ -25,6 +25,7 @@ type WaitGroupWrapper struct {
 type Iosession struct {
 	SesionId   uint32   //session唯一表示
 	Connection net.Conn //连接
+	isAuth     bool     //是否认证成功
 }
 
 //session写入数据
