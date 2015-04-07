@@ -25,7 +25,8 @@ type WaitGroupWrapper struct {
 type Iosession struct {
 	SesionId   uint32   //session唯一表示
 	Connection net.Conn //连接
-	isAuth     bool     //是否认证成功
+	IsAuth     bool     //是否认证成功
+	closed     bool     //是否已经关闭
 }
 
 //session写入数据
@@ -37,7 +38,10 @@ func (this *Iosession) Write(message interface{}) {
 
 //关闭连接
 func (this *Iosession) Close() {
-	GolisHandler.SessionClosed(this)
+	if !this.closed {
+		GolisHandler.SessionClosed(this)
+		this.closed = true
+	}
 	this.Connection.Close()
 }
 
@@ -136,7 +140,7 @@ func connectHandle(conn net.Conn) {
 		w.Done()
 	}()
 
-	for runnable {
+	for runnable && !session.closed {
 
 		n, err := conn.Read(buffer)
 		//设置超时
@@ -146,13 +150,13 @@ func connectHandle(conn net.Conn) {
 			GolisPackage.ReadConnData(ioBuffer, readerChannel)
 		} else {
 			//session已经关闭
-			GolisHandler.SessionClosed(&session)
+			session.Close()
 			exitChan <- true
 			return
 		}
-		if !runnable {
+		if !runnable || session.closed {
 			//session关闭
-			GolisHandler.SessionClosed(&session)
+			session.Close()
 			exitChan <- true
 			return
 		}
@@ -178,7 +182,7 @@ func waitData(session *Iosession, readerChannel chan *[]byte, exitChan chan bool
 			log.Println(err)
 		}
 	}()
-	for runnable {
+	for runnable && !session.closed {
 		select {
 		case data := <-readerChannel:
 			readFromData(session, data)
