@@ -144,7 +144,7 @@ func connectHandle(conn net.Conn) {
 
 		n, err := conn.Read(buffer)
 		//设置超时
-		resetTimeout(conn)
+		//resetTimeout(conn)
 		ioBuffer.PutBytes(buffer[:n])
 		if err == nil {
 			GolisPackage.ReadConnData(ioBuffer, readerChannel)
