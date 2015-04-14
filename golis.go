@@ -23,10 +23,11 @@ type WaitGroupWrapper struct {
 
 //定义session
 type Iosession struct {
-	SesionId   int32    //session唯一表示
-	Connection net.Conn //连接
-	IsAuth     bool     //是否认证成功
-	closed     bool     //是否已经关闭
+	SesionId   int32     //session唯一表示
+	Connection net.Conn  //连接
+	IsAuth     bool      //是否认证成功
+	closed     bool      //是否已经关闭
+	T          time.Time //最后一次调用时间
 }
 
 //session写入数据
