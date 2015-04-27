@@ -23,18 +23,17 @@ type WaitGroupWrapper struct {
 
 //定义session
 type Iosession struct {
-	SesionId   int32     //session唯一表示
-	Connection net.Conn  //连接
-	IsAuth     bool      //是否认证成功
-	closed     bool      //是否已经关闭
-	T          time.Time //最后一次调用时间
+	SesionId   int32            //session唯一表示
+	Connection net.Conn         //连接
+	IsAuth     bool             //是否认证成功
+	closed     bool             //是否已经关闭
+	T          time.Time        //最后一次调用时间
+	writeChan  chan interface{} //写入通道
 }
 
 //session写入数据
 func (this *Iosession) Write(message interface{}) {
-	//触发消息发送事件
-	GolisHandler.MessageSent(this, message)
-	this.Connection.Write(GolisPackage.Packet(message))
+	this.writeChan <- message
 }
 
 //关闭连接
@@ -44,6 +43,30 @@ func (this *Iosession) Close() {
 		this.closed = true
 	}
 	this.Connection.Close()
+}
+
+//启动channal发送数据
+func (session *Iosession) writeDataToConn() {
+
+	for runnable && !session.closed {
+		select {
+		case data := <-session.writeChan:
+			{
+				GolisHandler.MessageSent(session, data)
+				session.Connection.Write(GolisPackage.Packet(data))
+			}
+		}
+	}
+}
+
+//创建新session
+func newIoSession(conn net.Conn) *Iosession {
+	session := &Iosession{}
+	session.Connection = conn
+	session.T = time.Now()
+	session.writeChan = make(chan interface{}, 16)
+	go session.writeDataToConn()
+	return session
 }
 
 //设置读写超时
@@ -125,12 +148,12 @@ func connectHandle(conn net.Conn) {
 	//声明一个管道用于接收解包的数据
 	readerChannel := make(chan *[]byte, 16)
 	//创建session
-	session := Iosession{Connection: conn}
+	session := newIoSession(conn)
 	//触发sessionCreated事件
-	GolisHandler.SessionOpened(&session)
+	GolisHandler.SessionOpened(session)
 
 	exitChan := make(chan bool)
-	go waitData(&session, readerChannel, exitChan)
+	go waitData(session, readerChannel, exitChan)
 	defer func() {
 		conn.Close()
 		ioBuffer = nil
@@ -166,6 +189,7 @@ func connectHandle(conn net.Conn) {
 
 }
 
+//设置超时时间
 func resetTimeout(conn net.Conn) {
 	if rwTimeout == 0 {
 		conn.SetDeadline(time.Time{})
