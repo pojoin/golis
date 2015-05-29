@@ -80,7 +80,7 @@ type Packager interface {
 	//packageChan 准备好包后交给该chan
 	ReadConnData(buffer *Buffer, packageChan chan<- *[]byte)
 	//拆包函数
-	Unpacket(data []byte) interface{}
+	Unpacket(data *[]byte) interface{}
 	//封包函数
 	Packet(msg interface{}) []byte
 }
@@ -219,7 +219,7 @@ func waitData(session *Iosession, readerChannel chan *[]byte, exitChan chan bool
 
 //从准备好的数据读取并拆包
 func readFromData(session *Iosession, data *[]byte) {
-	message := GolisPackage.Unpacket(*data) //拆包
+	message := GolisPackage.Unpacket(data) //拆包
 	//收到消息到达时触发事件
 	GolisHandler.MessageReceived(session, message)
 }
