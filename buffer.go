@@ -169,3 +169,8 @@ func (b *Buffer) ReadString(length int) (string, error) {
 	b.rOff = rpos
 	return s, nil
 }
+
+//判断是否包含指定[]byte，如果存在则返回位置，如果不存在返回-1
+func (b *Buffer) Index(sep []byte) int {
+	return bytes.Index(b.b[b.rOff:], sep)
+}
