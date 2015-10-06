@@ -146,6 +146,32 @@ func (b *Buffer) ReadInt() (int, error) {
 	return int(x), nil
 }
 
+//get uint8
+func (b *Buffer) ReadUint8() (uint8, error) {
+	rpos := b.rOff + 1
+	if rpos > b.wOff {
+		return 0, errors.New("ReadUint8 out off wOff")
+	}
+	bytesBuffer := bytes.NewBuffer(b.b[b.rOff:rpos])
+	var x uint8
+	binary.Read(bytesBuffer, binary.BigEndian, &x)
+	b.rOff = rpos
+	return x, nil
+}
+
+//get uint16
+func (b *Buffer) ReadUint16() (uint16, error) {
+	rpos := b.rOff + 2
+	if rpos > b.wOff {
+		return 0, errors.New("ReadUint16 out off wOff")
+	}
+	bytesBuffer := bytes.NewBuffer(b.b[b.rOff:rpos])
+	var x uint16
+	binary.Read(bytesBuffer, binary.BigEndian, &x)
+	b.rOff = rpos
+	return x, nil
+}
+
 //读取uint32数据
 func (b *Buffer) ReadUint32() (uint32, error) {
 	rpos := b.rOff + 4
