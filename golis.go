@@ -38,6 +38,7 @@ func (this *Iosession) Write(message interface{}) error {
 		this.writeChan <- message
 		return nil
 	} else {
+		GolisHandler.MessageSendFail(this, message)
 		return errors.New("session is closed")
 	}
 }
@@ -59,7 +60,10 @@ func (session *Iosession) writeDataToConn() {
 		case data := <-session.writeChan:
 			{
 				GolisHandler.MessageSent(session, data)
-				session.Connection.Write(GolisPackage.Packet(data))
+				_, err := session.Connection.Write(GolisPackage.Packet(data))
+				if err != nil {
+					GolisHandler.MessageSendFail(session, data)
+				}
 			}
 		}
 	}
@@ -101,6 +105,8 @@ type IoHandler interface {
 	MessageReceived(session *Iosession, message interface{})
 	//消息发送时触发
 	MessageSent(session *Iosession, message interface{})
+	//消息发送失败触发
+	MessageSendFail(session *Iosession, message interface{})
 }
 
 //服务器端运行golis
