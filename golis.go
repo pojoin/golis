@@ -1,6 +1,7 @@
 package golis
 
 import (
+	"errors"
 	"log"
 	"net"
 	"sync"
@@ -32,8 +33,13 @@ type Iosession struct {
 }
 
 //session写入数据
-func (this *Iosession) Write(message interface{}) {
-	this.writeChan <- message
+func (this *Iosession) Write(message interface{}) error {
+	if runnable && !this.closed {
+		this.writeChan <- message
+		return nil
+	} else {
+		return errors.New("session is closed")
+	}
 }
 
 //关闭连接
