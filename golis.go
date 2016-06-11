@@ -10,12 +10,17 @@ import (
 
 type ioserv struct {
 	sync.WaitGroup
-	Handler   IoHandler
-	Pkg       IoPackager
-	runnable  bool
-	rwTimeout time.Duration
-	protocal  string
-	ioaddr    string
+	Handler     IoHandler
+	Pkg         IoPackager
+	runnable    bool
+	rwTimeout   time.Duration
+	protocal    string
+	ioaddr      string
+	filterChain *IoFilterChain
+}
+
+func (serv *ioserv) FilterChain() *IoFilterChain {
+	return serv.filterChain
 }
 
 //create session
