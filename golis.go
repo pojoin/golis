@@ -8,164 +8,56 @@ import (
 	"time"
 )
 
-//系统变量定义
-var (
-	GolisHandler IoHandler            //事件处理
-	GolisPackage Packager             //拆包封包处理接口
-	w            WaitGroupWrapper     //等待退出
-	runnable     bool                 //服务运行状态
-	rwTimeout    time.Duration    = 0 //超时单位秒
-)
-
-//定义waitGroup
-type WaitGroupWrapper struct {
+type ioserv struct {
 	sync.WaitGroup
+	Handler   IoHandler
+	Pkg       IoPackager
+	runnable  bool
+	rwTimeout time.Duration
+	protocal  string
+	ioaddr    string
 }
 
-//定义session
-type Iosession struct {
-	SesionId   int32            //session唯一表示
-	Connection net.Conn         //连接
-	IsAuth     bool             //是否认证成功
-	closed     bool             //是否已经关闭
-	T          time.Time        //最后一次调用时间
-	writeChan  chan interface{} //写入通道
-}
-
-//session写入数据
-func (this *Iosession) Write(message interface{}) error {
-	if runnable && !this.closed {
-		this.writeChan <- message
-		return nil
-	} else {
-		GolisHandler.MessageSendFail(this, message)
-		return errors.New("session is closed")
-	}
-}
-
-//关闭连接
-func (this *Iosession) Close() {
-	if !this.closed {
-		GolisHandler.SessionClosed(this)
-		this.closed = true
-	}
-	this.Connection.Close()
-}
-
-//启动channal发送数据
-func (session *Iosession) writeDataToConn() {
-
-	for runnable && !session.closed {
-		select {
-		case data := <-session.writeChan:
-			{
-				GolisHandler.MessageSent(session, data)
-				_, err := session.Connection.Write(GolisPackage.Packet(data))
-				if err != nil {
-					GolisHandler.MessageSendFail(session, data)
-				}
-			}
-		}
-	}
-}
-
-//创建新session
-func newIoSession(conn net.Conn) *Iosession {
+//create session
+func (serv *ioserv) newIoSession(conn net.Conn) *Iosession {
 	session := &Iosession{}
 	session.Connection = conn
 	session.T = time.Now()
 	session.writeChan = make(chan interface{}, 16)
+	session.serv = serv
 	go session.writeDataToConn()
 	return session
 }
 
-//设置读写超时
-func SetTimeout(timeoutSec time.Duration) {
-	rwTimeout = timeoutSec
+//stop serv
+func (serv *ioserv) Stop() {
+	serv.runnable = false
 }
 
-//拆包封包接口定义
-type Packager interface {
-	//读取连接数据
-	//packageChan 准备好包后交给该chan
-	ReadConnData(buffer *Buffer, packageChan chan<- *[]byte)
-	//拆包函数
-	Unpacket(data *[]byte) interface{}
-	//封包函数
-	Packet(msg interface{}) []byte
-}
-
-//事件触发接口定义
-type IoHandler interface {
-	//session打开
-	SessionOpened(session *Iosession)
-	//session关闭
-	SessionClosed(session *Iosession)
-	//收到消息时触发
-	MessageReceived(session *Iosession, message interface{})
-	//消息发送时触发
-	MessageSent(session *Iosession, message interface{})
-	//消息发送失败触发
-	MessageSendFail(session *Iosession, message interface{})
-}
-
-//服务器端运行golis
-//netPro：运行协议参数，tcp/udp
-//laddr ：程序监听ip和端口，如127.0.0.1:8080
-func Run(netPro, laddr string) {
-	runnable = true
-	log.Println("golis is listen port:", laddr)
-
-	netLis, err := net.Listen(netPro, laddr)
-	if err != nil {
-		log.Fatalln(err)
+func (serv *ioserv) resetTimeout(conn net.Conn) {
+	if serv.rwTimeout == 0 {
+		conn.SetDeadline(time.Time{})
+	} else {
+		conn.SetDeadline(time.Now().Add(time.Duration(serv.rwTimeout) * time.Second))
 	}
-	defer netLis.Close()
-	log.Println("waiting clients...")
-	for runnable {
-		conn, err := netLis.Accept()
-		if err != nil {
-			continue
-		}
-		go connectHandle(conn)
-	}
-
-	w.WaitGroup.Wait()
-	log.Println("golis is safe exit")
 }
 
-//停止服务
-func Stop() {
-	runnable = false
+func (serv *ioserv) readFromData(session *Iosession, data []byte) {
+	message := serv.Pkg.Unpacket(data)
+	serv.Handler.MessageReceived(session, message)
 }
 
-//客户端程序连接服务器
-func Dial(netPro, laddr string) {
-	runnable = true
-	conn, err := net.Dial(netPro, laddr)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	go connectHandle(conn)
-}
-
-//处理新连接
-func connectHandle(conn net.Conn) {
-	w.Add(1)
-	//声明一个临时缓冲区，用来存储被截断的数据
+//handle conn
+func (serv *ioserv) connectHandle(conn net.Conn) {
+	serv.Add(1)
 	ioBuffer := NewBuffer()
 
 	buffer := make([]byte, 512)
 
-	//声明一个管道用于接收解包的数据
-	readerChannel := make(chan *[]byte, 16)
-	//创建session
-	session := newIoSession(conn)
-	//触发sessionCreated事件
-	GolisHandler.SessionOpened(session)
+	//create session
+	session := serv.newIoSession(conn)
+	serv.Handler.SessionOpened(session)
 
-	exitChan := make(chan bool)
-	go waitData(session, readerChannel, exitChan)
 	defer func() {
 		conn.Close()
 		ioBuffer = nil
@@ -173,27 +65,26 @@ func connectHandle(conn net.Conn) {
 		if err := recover(); err != nil {
 			log.Println(err)
 		}
-		w.Done()
+		serv.Done()
 	}()
 
-	for runnable && !session.closed {
+	var pkgData []byte
+	var ok bool
+	for serv.runnable && !session.closed {
 
 		n, err := conn.Read(buffer)
-		//设置超时
-		//resetTimeout(conn)
 		ioBuffer.PutBytes(buffer[:n])
 		if err == nil {
-			GolisPackage.ReadConnData(ioBuffer, readerChannel)
+			pkgData, ok = serv.Pkg.ReadConnData(ioBuffer)
+			if ok {
+				serv.readFromData(session, pkgData)
+			}
 		} else {
-			//session已经关闭
 			session.Close()
-			exitChan <- true
 			return
 		}
-		if !runnable || session.closed {
-			//session关闭
+		if !serv.runnable || session.closed {
 			session.Close()
-			exitChan <- true
 			return
 		}
 
@@ -201,37 +92,139 @@ func connectHandle(conn net.Conn) {
 
 }
 
-//设置超时时间
-func resetTimeout(conn net.Conn) {
-	if rwTimeout == 0 {
-		conn.SetDeadline(time.Time{})
+//core server
+type server struct {
+	*ioserv
+}
+
+//server run
+func (s *server) Run() {
+	s.runnable = true
+	log.Println("golis is starting...")
+	netLis, err := net.Listen(s.protocal, s.ioaddr)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer netLis.Close()
+	log.Println(s.ListenInfo())
+	log.Println("waiting clients to connect")
+	for s.runnable {
+		conn, err := netLis.Accept()
+		if err != nil {
+			continue
+		}
+		go s.connectHandle(conn)
+	}
+}
+
+//server run and listen addr port
+func (s *server) RunOnPort(protocal, addr string) {
+	s.runnable = true
+	log.Println("golis is starting...")
+	netLis, err := net.Listen(protocal, addr)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer netLis.Close()
+	log.Println(s.ListenInfo())
+	log.Println("waiting clients to connect")
+	for s.runnable {
+		conn, err := netLis.Accept()
+		if err != nil {
+			continue
+		}
+		go s.connectHandle(conn)
+	}
+}
+
+//set port and protocal ,the protocal value can be "tcp" or "udp"
+func (s *server) SetPort(protocal, addr string) {
+	s.protocal = protocal
+	s.ioaddr = addr
+}
+
+//get port
+func (s *server) Port() string {
+	return s.ioaddr
+}
+
+//get listen info
+func (s *server) ListenInfo() string {
+	return "the server listened protocal is " + s.protocal + " and istened addr is " + s.ioaddr
+}
+
+type client struct {
+	*ioserv
+}
+
+// dial to server
+func (c *client) Dial(netPro, laddr string) {
+	c.runnable = true
+	conn, err := net.Dial(netPro, laddr)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	go c.connectHandle(conn)
+}
+
+//iosession
+type Iosession struct {
+	serv       *ioserv
+	SesionId   int32
+	Connection net.Conn
+	IsAuth     bool
+	closed     bool
+	T          time.Time
+	writeChan  chan interface{}
+}
+
+func (this *Iosession) Write(message interface{}) error {
+	if this.serv.runnable && !this.closed {
+		this.writeChan <- message
+		return nil
 	} else {
-		conn.SetDeadline(time.Now().Add(time.Duration(rwTimeout) * time.Second))
+		this.serv.Handler.MessageSendFail(this, message)
+		return errors.New("session is closed")
 	}
 }
 
-//等待数据包
-func waitData(session *Iosession, readerChannel chan *[]byte, exitChan chan bool) {
-	defer func() {
-		close(exitChan)
-		close(readerChannel)
-		if err := recover(); err != nil {
-			log.Println(err)
-		}
-	}()
-	for runnable && !session.closed {
+//close iosession
+func (this *Iosession) Close() {
+	if !this.closed {
+		this.serv.Handler.SessionClosed(this)
+		this.closed = true
+	}
+	this.Connection.Close()
+}
+
+func (session *Iosession) writeDataToConn() {
+
+	for session.serv.runnable && !session.closed {
 		select {
-		case data := <-readerChannel:
-			readFromData(session, data)
-		case <-exitChan:
-			return
+		case data := <-session.writeChan:
+			{
+				session.serv.Handler.MessageSent(session, data)
+				_, err := session.Connection.Write(session.serv.Pkg.Packet(data))
+				if err != nil {
+					session.serv.Handler.MessageSendFail(session, data)
+				}
+			}
 		}
 	}
 }
 
-//从准备好的数据读取并拆包
-func readFromData(session *Iosession, data *[]byte) {
-	message := GolisPackage.Unpacket(data) //拆包
-	//收到消息到达时触发事件
-	GolisHandler.MessageReceived(session, message)
+type IoPackager interface {
+	ReadConnData(buffer *Buffer) (pkgData []byte, ok bool)
+	Unpacket(data []byte) interface{}
+	Packet(msg interface{}) []byte
+}
+
+type IoHandler interface {
+	//session opened
+	SessionOpened(session *Iosession)
+	//session closed
+	SessionClosed(session *Iosession)
+	MessageReceived(session *Iosession, message interface{})
+	MessageSent(session *Iosession, message interface{})
+	MessageSendFail(session *Iosession, message interface{})
 }
