@@ -1,93 +1,159 @@
 package golis
 
-type IoFilter struct {
-	name string
-	prev *IoFilter
-	next *IoFilter
+type IoFilter interface {
+	SessionOpened(session *Iosession) bool
+	SessionClosed(session *Iosession) bool
+	MsgReceived(session *Iosession, message interface{}) bool
+	MsgSend(session *Iosession, message interface{}) (interface{}, bool)
+	ErrorCaught(sesion *Iosession, err error) bool
 }
 
-func (i *IoFilter) Next() *IoFilter {
-	return i.next
+type entry struct {
+	name   string
+	filter IoFilter
+	prev   *entry
+	next   *entry
 }
 
-func (i *IoFilter) SessionOpened(session Iosession) {
-	i.Next().SessionOpened(session)
+func (e *entry) sessionOpened(session *Iosession) bool {
+	if e.filter.SessionOpened(session) {
+		if e.next != nil {
+			return e.next.sessionOpened(session)
+		} else {
+			return true
+		}
+	}
+	return false
 }
 
-func (i *IoFilter) SessionClosed(session Iosession) {
-	i.Next().SessionClosed(session)
+func (e *entry) sessionClosed(session *Iosession) bool {
+	if e.filter.SessionClosed(session) {
+		if e.next != nil {
+			return e.next.sessionClosed(session)
+		} else {
+			return true
+		}
+	}
+	return false
 }
 
-func (i *IoFilter) MessageReceived(session Iosession, message interface{}) {
-	i.Next().MessageReceived(session, message)
+func (e *entry) msgReceived(session *Iosession, message interface{}) bool {
+	if e.filter.MsgReceived(session, message) {
+		if e.next != nil {
+			return e.next.sessionClosed(session)
+		} else {
+			return true
+		}
+	}
+	return false
 }
 
-func (i *IoFilter) MessageSent(session Iosession, message interface{}) {
-	i.Next().MessageSent(session, message)
+func (e *entry) errorCaught(session *Iosession, err error) bool {
+	if e.filter.ErrorCaught(session, err) {
+		if e.next != nil {
+			return e.next.errorCaught(session, err)
+		} else {
+			return true
+		}
+	}
+	return false
 }
-func (i *IoFilter) ErrorCaught(session Iosession, err error) {
-	i.Next().ErrorCaught(session, err)
+func (e *entry) msgSend(session *Iosession, message interface{}) (interface{}, bool) {
+	msg, ok := e.filter.MsgSend(session, message)
+	if ok {
+		if e.prev != nil {
+			return e.prev.msgSend(session, msg)
+		}
+	}
+	return msg, ok
 }
 
 type IoFilterChain struct {
-	head *IoFilter
+	head *entry
 }
 
-func (f *IoFilterChain) AddLast(name string, filter *IoFilter) *IoFilterChain {
+func (f *IoFilterChain) sessionOpened(session *Iosession) bool {
+	return f.head.sessionOpened(session)
+}
+
+func (f *IoFilterChain) sessionClosed(session *Iosession) bool {
+	return f.head.sessionClosed(session)
+}
+
+func (f *IoFilterChain) msgReceived(session *Iosession, message interface{}) bool {
+	return f.head.msgReceived(session, message)
+}
+
+func (f *IoFilterChain) errorCaught(session *Iosession, err error) bool {
+	return f.head.errorCaught(session, err)
+}
+
+func (f *IoFilterChain) msgSend(session *Iosession, message interface{}) (interface{}, bool) {
+	lastEntry := getLastEntry(f.head)
+	return lastEntry.msgSend(session, message)
+}
+
+func (f *IoFilterChain) AddLast(name string, filter IoFilter) *IoFilterChain {
 	if f.head == nil {
-		filter.next = nil
-		filter.prev = nil
-		f.head = filter
+		f.head = &entry{
+			name:   name,
+			prev:   nil,
+			next:   nil,
+			filter: filter,
+		}
 	} else {
-		lastFilter := getLastFilter(f.head)
-		lastFilter.next = &IoFilter{
-			name: name,
-			next: nil,
-			prev: lastFilter,
+		lastEntry := getLastEntry(f.head)
+		lastEntry.next = &entry{
+			name:   name,
+			filter: filter,
+			next:   nil,
+			prev:   lastEntry,
 		}
 	}
 	return f
 }
 
-func (f *IoFilterChain) AddAfter(baseName, name string, filter *IoFilter) *IoFilterChain {
-	if e, ok := getFilterByName(baseName, f.head); ok {
+func (f *IoFilterChain) AddAfter(baseName, name string, filter IoFilter) *IoFilterChain {
+	if e, ok := getEntryByName(baseName, f.head); ok {
 		tmp := e.next
-		e.next = &IoFilter{
-			name: name,
-			next: tmp,
-			prev: e,
+		e.next = &entry{
+			name:   name,
+			filter: filter,
+			next:   tmp,
+			prev:   e,
 		}
 		tmp.prev = e.next
 	}
 	return f
 }
 
-func (f *IoFilterChain) AddBefore(baseName, name string, filter *IoFilter) *IoFilterChain {
-	if e, ok := getFilterByName(baseName, f.head); ok {
+func (f *IoFilterChain) AddBefore(baseName, name string, filter IoFilter) *IoFilterChain {
+	if e, ok := getEntryByName(baseName, f.head); ok {
 		tmp := e.prev
-		e.prev = &IoFilter{
-			name: name,
-			next: e,
-			prev: tmp,
+		e.prev = &entry{
+			name:   name,
+			filter: filter,
+			next:   e,
+			prev:   tmp,
 		}
 		tmp.next = e.prev
 	}
 	return f
 }
 
-func getFilterByName(name string, root *IoFilter) (*IoFilter, bool) {
+func getEntryByName(name string, root *entry) (*entry, bool) {
 	if root == nil {
 		return nil, false
 	}
 	if root.name == name {
 		return root, true
 	}
-	return getFilterByName(name, root.next)
+	return getEntryByName(name, root.next)
 }
 
-func getLastFilter(head *IoFilter) *IoFilter {
+func getLastEntry(head *entry) *entry {
 	if head.next == nil {
 		return head
 	}
-	return getLastFilter(head.next)
+	return getLastEntry(head.next)
 }
