@@ -1,5 +1,6 @@
 # golis
 golis is a simple socket framework with golang.
+You can customize the message packet format with IoFilter interface.
 
 ##Quick Start
 ######Download and install
