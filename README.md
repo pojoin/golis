@@ -61,4 +61,7 @@ func (*filter) ErrorCaught(session *golis.Iosession, err error) bool {
 ```bash
     go run echoServer.go
 ```
-
+######test
+```bash
+    telnet 127.0.0.1 9090
+````
