@@ -3,17 +3,14 @@ package golis
 import (
 	"errors"
 	"net"
-	"time"
 )
 
 //Iosession
 type Iosession struct {
-	serv     *ioserv
-	SesionId int32
-	conn     net.Conn
-	IsAuth   bool
-	closed   bool
-	T        time.Time
+	serv   *ioserv
+	conn   net.Conn
+	closed bool
+	Data   interface{}
 }
 
 func (this *Iosession) GetConn() net.Conn {
