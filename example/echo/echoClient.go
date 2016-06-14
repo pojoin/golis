@@ -10,8 +10,25 @@ import (
 
 func main() {
 	c := golis.NewClient()
-	c.FilterChain().AddLast("default", &golis.IoFilterAdapter{}).AddLast("clientFilter", &filter{})
+	c.FilterChain().AddLast("codec", &codecFilter{}).AddLast("clientFilter", &filter{})
 	c.Dial("tcp", "127.0.0.1:9090")
+}
+
+type codecFilter struct {
+	golis.IoFilterAdapter
+}
+
+func (*codecFilter) Decode(message interface{}) (interface{}, bool) {
+	if buffer, ok := message.(*golis.Buffer); ok {
+		bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
+		buffer.ResetWrite()
+		buffer.ResetRead()
+		return bs, true
+	}
+	return message, false
+}
+func (*codecFilter) Encode(message interface{}) (interface{}, bool) {
+	return message, true
 }
 
 type filter struct {
@@ -34,7 +51,7 @@ func (*filter) SessionOpened(session *golis.Iosession) bool {
 	return true
 }
 
-func (*filter) MsgReceived(session *golis.Iosession, message interface{}) (interface{}, bool) {
+func (*filter) MsgReceived(session *golis.Iosession, message interface{}) bool {
 	fmt.Println("MsgReceived")
 	if bs, ok := message.([]byte); ok {
 		msg := string(bs)
@@ -43,10 +60,10 @@ func (*filter) MsgReceived(session *golis.Iosession, message interface{}) (inter
 			session.Close()
 		}
 	}
-	return message, true
+	return true
 }
 
-func (*filter) MsgSent(session *golis.Iosession, message interface{}) (interface{}, bool) {
+func (*filter) MsgSent(session *golis.Iosession, message interface{}) bool {
 	fmt.Println("client msg sent")
-	return message, true
+	return true
 }

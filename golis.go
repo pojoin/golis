@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"net"
 	"sync"
-	"time"
 )
 
 type ioserv struct {
@@ -21,7 +20,6 @@ func (serv *ioserv) FilterChain() *IoFilterChain {
 func (serv *ioserv) newIoSession(conn net.Conn) *Iosession {
 	session := &Iosession{}
 	session.conn = conn
-	session.T = time.Now()
 	session.serv = serv
 	go session.serv.filterChain.sessionOpened(session)
 	return session
@@ -68,6 +66,7 @@ func (s *server) Run() {
 		}
 		go s.newIoSession(conn).readData()
 	}
+	s.wg.Wait()
 }
 
 //server run and listen addr port
