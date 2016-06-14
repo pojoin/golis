@@ -24,7 +24,7 @@ func (*filter) SessionClosed(session *golis.Iosession) bool {
 	return true
 }
 
-func (*filter) MsgReceived(session *golis.Iosession, message interface{}) (interface{}, bool) {
+func (*filter) MsgReceived(session *golis.Iosession, message interface{}) bool {
 	if msg, ok := message.(*golis.Buffer); ok {
 		bs, _ := msg.ReadBytes(msg.GetWritePos() - msg.GetReadPos())
 		fmt.Println("received msg :", string(bs))
@@ -35,11 +35,11 @@ func (*filter) MsgReceived(session *golis.Iosession, message interface{}) (inter
 	} else {
 		fmt.Println("not ok")
 	}
-	return message, true
+	return true
 }
 
-func (*filter) MsgSend(session *golis.Iosession, message interface{}) (interface{}, bool) {
-	return message, true
+func (*filter) MsgSend(session *golis.Iosession, message interface{}) bool {
+	return true
 }
 
 func (*filter) ErrorCaught(session *golis.Iosession, err error) bool {

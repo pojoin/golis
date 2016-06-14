@@ -3,28 +3,30 @@ package golis
 type IoFilter interface {
 	SessionOpened(session *Iosession) bool
 	SessionClosed(session *Iosession) bool
-	MsgReceived(session *Iosession, message interface{}) (interface{}, bool)
-	MsgSend(session *Iosession, message interface{}) (interface{}, bool)
+	MsgReceived(session *Iosession, message interface{}) bool
+	MsgSend(session *Iosession, message interface{}) bool
 	ErrorCaught(sesion *Iosession, err error) bool
 }
 
 type IoFilterAdapter struct{}
 
-func (*IoFilterAdapter) SessionOpened(session *Iosession) bool          { return true }
-func (*IoFilterAdapter) SessionClosed(session *Iosession) bool          { return true }
-func (*IoFilterAdapter) ErrorCaught(session *Iosession, err error) bool { return true }
-func (*IoFilterAdapter) MsgSend(session *Iosession, message interface{}) (interface{}, bool) {
-	return message, true
+func (*IoFilterAdapter) SessionOpened(session *Iosession) bool                    { return true }
+func (*IoFilterAdapter) SessionClosed(session *Iosession) bool                    { return true }
+func (*IoFilterAdapter) ErrorCaught(session *Iosession, err error) bool           { return true }
+func (*IoFilterAdapter) MsgSend(session *Iosession, message interface{}) bool     { return true }
+func (*IoFilterAdapter) MsgReceived(session *Iosession, message interface{}) bool { return true }
+
+type Codecer interface {
+	Decode(message interface{}) (interface{}, bool)
+	Encode(message interface{}) (interface{}, bool)
 }
-func (*IoFilterAdapter) MsgReceived(session *Iosession, message interface{}) (interface{}, bool) {
-	if bf, ok := message.(*Buffer); ok {
-		bs, _ := bf.ReadBytes(bf.GetWritePos() - bf.GetReadPos())
-		bf.ResetRead()
-		bf.ResetWrite()
-		return bs, true
-	}
-	return message, true
+
+type ProtocalCodec struct {
+	IoFilterAdapter
 }
+
+func (*ProtocalCodec) Decode(message interface{}) (interface{}, bool) { return message, true }
+func (*ProtocalCodec) Encode(message interface{}) (interface{}, bool) { return message, true }
 
 type entry struct {
 	name   string
@@ -55,14 +57,20 @@ func (e *entry) sessionClosed(session *Iosession) bool {
 	return false
 }
 
-func (e *entry) msgReceived(session *Iosession, message interface{}) (interface{}, bool) {
-	msg, ok := e.filter.MsgReceived(session, message)
-	if ok {
-		if e.next != nil {
-			return e.next.msgReceived(session, msg)
+func (e *entry) msgReceived(session *Iosession, message interface{}) bool {
+	var flag bool
+	if codecer, ok := e.filter.(Codecer); ok {
+		if msg, ok := codecer.Decode(message); ok {
+			if flag = e.filter.MsgReceived(session, msg); flag && e.next != nil {
+				return e.next.msgReceived(session, msg)
+			}
+		}
+	} else {
+		if flag = e.filter.MsgReceived(session, message); flag && e.next != nil {
+			return e.next.msgReceived(session, message)
 		}
 	}
-	return msg, ok
+	return flag
 }
 
 func (e *entry) errorCaught(session *Iosession, err error) bool {
@@ -76,13 +84,20 @@ func (e *entry) errorCaught(session *Iosession, err error) bool {
 	return false
 }
 func (e *entry) msgSend(session *Iosession, message interface{}) (interface{}, bool) {
-	msg, ok := e.filter.MsgSend(session, message)
-	if ok {
-		if e.prev != nil {
-			return e.prev.msgSend(session, msg)
+	var flag bool
+	if codecer, ok := e.filter.(Codecer); ok {
+		if msg, ok := codecer.Encode(message); ok {
+			if flag = e.filter.MsgSend(session, msg); flag && e.prev != nil {
+				_, ok = e.prev.msgSend(session, msg)
+				return msg, ok
+			}
+		}
+	} else {
+		if flag = e.filter.MsgSend(session, message); flag && e.prev != nil {
+			return e.prev.msgSend(session, message)
 		}
 	}
-	return msg, ok
+	return message, flag
 }
 
 // when invok return true ,it will next
@@ -98,7 +113,7 @@ func (f *IoFilterChain) sessionClosed(session *Iosession) bool {
 	return f.head.sessionClosed(session)
 }
 
-func (f *IoFilterChain) msgReceived(session *Iosession, message interface{}) (interface{}, bool) {
+func (f *IoFilterChain) msgReceived(session *Iosession, message interface{}) bool {
 	return f.head.msgReceived(session, message)
 }
 
