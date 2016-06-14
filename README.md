@@ -13,6 +13,7 @@ package main
 import "github.com/hechuangqiang/golis"
 
 func main() {
-
+    s := golis.NewServer()
 }
+
 ```
