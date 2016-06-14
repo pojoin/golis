@@ -1,2 +1,2 @@
 # golis
-golis是能够帮助用户快速开发高性能、高伸缩性网络应用程序的小框架，简单、易用。
+golis is a simple socket framework writened by golang.
