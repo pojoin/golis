@@ -39,10 +39,11 @@ type server struct {
 	ioaddr   string
 }
 
+//default port is 10086
 func NewServer() *server {
 	s := &server{}
 	s.protocal = "tcp"
-	s.ioaddr = "10010"
+	s.ioaddr = "10086"
 	s.filterChain = &IoFilterChain{}
 	return s
 }
