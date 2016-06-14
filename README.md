@@ -65,3 +65,4 @@ func (*filter) ErrorCaught(session *golis.Iosession, err error) bool {
 ```bash
     telnet 127.0.0.1 9090
 ````
+More [examples](https://github.com/hechuangqiang/golis/tree/master/example)
