@@ -1,7 +1,7 @@
 package golis
 
 import (
-	"log"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -23,7 +23,7 @@ func (serv *ioserv) newIoSession(conn net.Conn) *Iosession {
 	session.conn = conn
 	session.T = time.Now()
 	session.serv = serv
-	session.serv.filterChain.sessionOpened(session)
+	go session.serv.filterChain.sessionOpened(session)
 	return session
 }
 
@@ -50,17 +50,19 @@ func NewServer() *server {
 //server run
 func (s *server) Run() {
 	s.runnable = true
-	log.Println("golis is starting...")
+	fmt.Println("golis is starting...")
 	netLis, err := net.Listen(s.protocal, s.ioaddr)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
+		return
 	}
 	defer netLis.Close()
-	log.Println(s.ListenInfo())
-	log.Println("waiting clients to connect")
+	fmt.Println(s.ListenInfo())
+	fmt.Println("waiting clients to connect...")
 	for s.runnable {
 		conn, err := netLis.Accept()
 		if err != nil {
+			fmt.Println(err)
 			continue
 		}
 		go s.newIoSession(conn).readData()
@@ -105,7 +107,12 @@ func (c *client) Dial(netPro, laddr string) {
 	c.runnable = true
 	conn, err := net.Dial(netPro, laddr)
 	if err != nil {
-		log.Fatalln(err)
+		fmt.Println(err)
 	}
-	go c.newIoSession(conn).readData()
+	flag := make(chan bool)
+	go func() {
+		c.newIoSession(conn).readData()
+		close(flag)
+	}()
+	<-flag
 }

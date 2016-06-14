@@ -3,9 +3,27 @@ package golis
 type IoFilter interface {
 	SessionOpened(session *Iosession) bool
 	SessionClosed(session *Iosession) bool
-	MsgReceived(session *Iosession, message interface{}) bool
+	MsgReceived(session *Iosession, message interface{}) (interface{}, bool)
 	MsgSend(session *Iosession, message interface{}) (interface{}, bool)
 	ErrorCaught(sesion *Iosession, err error) bool
+}
+
+type IoFilterAdapter struct{}
+
+func (*IoFilterAdapter) SessionOpened(session *Iosession) bool          { return true }
+func (*IoFilterAdapter) SessionClosed(session *Iosession) bool          { return true }
+func (*IoFilterAdapter) ErrorCaught(session *Iosession, err error) bool { return true }
+func (*IoFilterAdapter) MsgSend(session *Iosession, message interface{}) (interface{}, bool) {
+	return message, true
+}
+func (*IoFilterAdapter) MsgReceived(session *Iosession, message interface{}) (interface{}, bool) {
+	if bf, ok := message.(*Buffer); ok {
+		bs, _ := bf.ReadBytes(bf.GetWritePos() - bf.GetReadPos())
+		bf.ResetRead()
+		bf.ResetWrite()
+		return bs, true
+	}
+	return message, true
 }
 
 type entry struct {
@@ -37,15 +55,14 @@ func (e *entry) sessionClosed(session *Iosession) bool {
 	return false
 }
 
-func (e *entry) msgReceived(session *Iosession, message interface{}) bool {
-	if e.filter.MsgReceived(session, message) {
+func (e *entry) msgReceived(session *Iosession, message interface{}) (interface{}, bool) {
+	msg, ok := e.filter.MsgReceived(session, message)
+	if ok {
 		if e.next != nil {
-			return e.next.sessionClosed(session)
-		} else {
-			return true
+			return e.next.msgReceived(session, msg)
 		}
 	}
-	return false
+	return msg, ok
 }
 
 func (e *entry) errorCaught(session *Iosession, err error) bool {
@@ -68,6 +85,7 @@ func (e *entry) msgSend(session *Iosession, message interface{}) (interface{}, b
 	return msg, ok
 }
 
+// when invok return true ,it will next
 type IoFilterChain struct {
 	head *entry
 }
@@ -80,7 +98,7 @@ func (f *IoFilterChain) sessionClosed(session *Iosession) bool {
 	return f.head.sessionClosed(session)
 }
 
-func (f *IoFilterChain) msgReceived(session *Iosession, message interface{}) bool {
+func (f *IoFilterChain) msgReceived(session *Iosession, message interface{}) (interface{}, bool) {
 	return f.head.msgReceived(session, message)
 }
 

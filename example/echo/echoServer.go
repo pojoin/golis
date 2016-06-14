@@ -7,10 +7,6 @@ import (
 )
 
 func main() {
-	iobuffer := golis.NewBuffer()
-	iobuffer.Cap()
-	iobuffer.GetReadPos()
-
 	s := golis.NewServer()
 	s.FilterChain().AddLast("test", &filter{})
 	s.RunOnPort("tcp", ":9090")
@@ -19,7 +15,7 @@ func main() {
 type filter struct{}
 
 func (*filter) SessionOpened(session *golis.Iosession) bool {
-	fmt.Println("session opened")
+	fmt.Println("session opened,the client is ", session.GetConn().RemoteAddr().String())
 	return true
 }
 
@@ -28,20 +24,22 @@ func (*filter) SessionClosed(session *golis.Iosession) bool {
 	return true
 }
 
-func (*filter) MsgReceived(session *golis.Iosession, message interface{}) bool {
+func (*filter) MsgReceived(session *golis.Iosession, message interface{}) (interface{}, bool) {
 	if msg, ok := message.(*golis.Buffer); ok {
-		fmt.Println(msg.GetReadPos(), msg.GetWritePos())
 		bs, _ := msg.ReadBytes(msg.GetWritePos() - msg.GetReadPos())
-		fmt.Println("received msg : ", string(bs))
-
+		fmt.Println("received msg :", string(bs))
+		replayMsg := fmt.Sprintf("echoServer received msg : %v", string(bs))
+		session.Write([]byte(replayMsg))
+		msg.ResetRead()
+		msg.ResetWrite()
 	} else {
 		fmt.Println("not ok")
 	}
-	return true
+	return message, true
 }
 
 func (*filter) MsgSend(session *golis.Iosession, message interface{}) (interface{}, bool) {
-	return nil, true
+	return message, true
 }
 
 func (*filter) ErrorCaught(session *golis.Iosession, err error) bool {
