@@ -1,5 +1,5 @@
 # golis
-golis is a simple socket framework writened by golang.
+golis is a simple socket framework with golang.
 
 ##Quick Start
 ######Download and install
