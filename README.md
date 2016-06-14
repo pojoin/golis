@@ -6,7 +6,7 @@ golis is a simple socket framework writened by golang.
 
     go get github.com/hechuangqiang/golis
 
-####create a echoServer
+####example echoServer
 ######Create file `echoServer.go`
 ```go
 package main
@@ -56,5 +56,9 @@ func (*filter) MsgSend(session *golis.Iosession, message interface{}) (interface
 func (*filter) ErrorCaught(session *golis.Iosession, err error) bool {
 	return true
 }
+```
+######Build and run
+```bash
+    go run echoServer.go
 ```
 
