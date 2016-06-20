@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hechuangqiang/golis"
+	"github.com/pojoin/golis"
 )
 
 func main() {
