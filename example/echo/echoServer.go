@@ -33,7 +33,7 @@ func (*codecFilter) Encode(message interface{}) (interface{}, bool) {
 type filter struct{}
 
 func (*filter) SessionOpened(session *golis.Iosession) bool {
-	fmt.Println("session opened,the client is ", session.GetConn().RemoteAddr().String())
+	fmt.Println("session opened,the client is ", session.Conn().RemoteAddr().String())
 	return true
 }
 

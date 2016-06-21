@@ -4,12 +4,14 @@ import (
 	"fmt"
 	"net"
 	"sync"
+	"sync/atomic"
 )
 
 type ioserv struct {
-	wg          sync.WaitGroup
-	runnable    bool
-	filterChain *IoFilterChain
+	Generator_id uint64
+	wg           sync.WaitGroup
+	runnable     bool
+	filterChain  *IoFilterChain
 }
 
 func (serv *ioserv) FilterChain() *IoFilterChain {
@@ -21,6 +23,7 @@ func (serv *ioserv) newIoSession(conn net.Conn) *Iosession {
 	session := &Iosession{}
 	session.conn = conn
 	session.serv = serv
+	session.id = atomic.AddUint64(&serv.Generator_id, 1)
 	go session.serv.filterChain.sessionOpened(session)
 	return session
 }
