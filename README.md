@@ -27,10 +27,14 @@ func main() {
 	s.RunOnPort("tcp", ":9090")
 }
 
+//定义IoFilter
+//并实现Codecer接口，用于拆包、解包
 type codecFilter struct {
 	golis.IoFilterAdapter
 }
 
+
+//拆包
 func (*codecFilter) Decode(message interface{}) (interface{}, bool) {
 	if buffer, ok := message.(*golis.Buffer); ok {
 		bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
@@ -41,10 +45,12 @@ func (*codecFilter) Decode(message interface{}) (interface{}, bool) {
 	return message, false
 }
 
+//解包
 func (*codecFilter) Encode(message interface{}) (interface{}, bool) {
 	return message, true
 }
 
+//定义一个普通的IoFilter,继承自IoFilter
 type filter struct{}
 
 func (*filter) SessionOpened(session *golis.Iosession) bool {
