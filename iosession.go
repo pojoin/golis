@@ -7,14 +7,19 @@ import (
 
 //Iosession
 type Iosession struct {
+	id     uint64
 	serv   *ioserv
 	conn   net.Conn
 	closed bool
 	Data   interface{}
 }
 
-func (this *Iosession) GetConn() net.Conn {
-	return this.conn
+func (s *Iosession) Id() uint64 {
+	return s.id
+}
+
+func (s *Iosession) Conn() net.Conn {
+	return s.conn
 }
 
 func (session *Iosession) readData() {
