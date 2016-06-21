@@ -3,6 +3,8 @@ golis 是一个简单的构建网络消息传输的脚手架，类型java中的m
 
 根据需要自定义消息报文格式，可以参考例子。
 
+golis 通过IoFilterChain 处理定义好的IoFilter,类似mina。
+
 ##Quick Start
 ######Download and install
 
