@@ -8,7 +8,7 @@ golis 通过IoFilterChain 处理定义好的IoFilter,类似mina。
 ##Quick Start
 ######Download and install
 
-    go get github.com/hechuangqiang/golis
+    go get github.com/pojoin/golis
 
 ####example echoServer
 ######Create file `echoServer.go`
@@ -18,7 +18,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/hechuangqiang/golis"
+	"github.com/pojoin/golis"
 )
 
 func main() {
@@ -88,4 +88,4 @@ func (*filter) ErrorCaught(session *golis.Iosession, err error) bool {
 ```bash
     telnet 127.0.0.1 9090
 ````
-More [examples](https://github.com/hechuangqiang/golis/tree/master/example)
+More [examples](https://github.com/pojoin/golis/tree/master/example)
