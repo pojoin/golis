@@ -5,6 +5,7 @@ import (
 	"net"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 type ioserv struct {
@@ -12,10 +13,15 @@ type ioserv struct {
 	wg           sync.WaitGroup
 	runnable     bool
 	filterChain  *IoFilterChain
+	codecer      Codecer
 }
 
 func (serv *ioserv) FilterChain() *IoFilterChain {
 	return serv.filterChain
+}
+
+func (serv *ioserv) SetCodecer(codecer Codecer) {
+	serv.codecer = codecer
 }
 
 //create session
@@ -23,7 +29,11 @@ func (serv *ioserv) newIoSession(conn net.Conn) *Iosession {
 	session := &Iosession{}
 	session.conn = conn
 	session.serv = serv
+	session.closed = false
+	session.dataCh = make(chan interface{}, 16)
 	session.id = atomic.AddUint64(&serv.Generator_id, 1)
+	go session.dealDataCh()
+	go session.readData()
 	go session.serv.filterChain.sessionOpened(session)
 	return session
 }
@@ -67,7 +77,7 @@ func (s *server) Run() {
 			fmt.Println(err)
 			continue
 		}
-		go s.newIoSession(conn).readData()
+		s.newIoSession(conn)
 	}
 	s.wg.Wait()
 }
@@ -112,10 +122,7 @@ func (c *client) Dial(netPro, laddr string) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	flag := make(chan bool)
-	go func() {
-		c.newIoSession(conn).readData()
-		close(flag)
-	}()
-	<-flag
+	c.newIoSession(conn)
+	time.Sleep(20 * time.Millisecond)
+	c.wg.Wait()
 }

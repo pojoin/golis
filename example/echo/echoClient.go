@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,25 +11,28 @@ import (
 
 func main() {
 	c := golis.NewClient()
-	c.FilterChain().AddLast("codec", &codecFilter{}).AddLast("clientFilter", &filter{})
+	c.FilterChain().AddLast("clientFilter", &filter{})
+	c.SetCodecer(&echoProtocalCodec{})
 	c.Dial("tcp", "127.0.0.1:9090")
 }
 
-type codecFilter struct {
-	golis.IoFilterAdapter
+type echoProtocalCodec struct {
+	golis.ProtocalCodec
 }
 
-func (*codecFilter) Decode(message interface{}) (interface{}, bool) {
-	if buffer, ok := message.(*golis.Buffer); ok {
-		bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
-		buffer.ResetWrite()
-		buffer.ResetRead()
-		return bs, true
-	}
-	return message, false
+func (*echoProtocalCodec) Decode(buffer *golis.Buffer, dataCh chan<- interface{}) error {
+	bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
+	buffer.ResetWrite()
+	buffer.ResetRead()
+	dataCh <- bs
+	return nil
 }
-func (*codecFilter) Encode(message interface{}) (interface{}, bool) {
-	return message, true
+
+func (*echoProtocalCodec) Encode(message interface{}) ([]byte, error) {
+	if bs, ok := message.([]byte); ok {
+		return bs, nil
+	}
+	return nil, errors.New("failed")
 }
 
 type filter struct {
@@ -52,7 +56,6 @@ func (*filter) SessionOpened(session *golis.Iosession) bool {
 }
 
 func (*filter) MsgReceived(session *golis.Iosession, message interface{}) bool {
-	fmt.Println("MsgReceived")
 	if bs, ok := message.([]byte); ok {
 		msg := string(bs)
 		fmt.Println(msg)

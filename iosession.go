@@ -12,6 +12,7 @@ type Iosession struct {
 	conn   net.Conn
 	closed bool
 	Data   interface{}
+	dataCh chan interface{}
 }
 
 func (s *Iosession) Id() uint64 {
@@ -20,6 +21,18 @@ func (s *Iosession) Id() uint64 {
 
 func (s *Iosession) Conn() net.Conn {
 	return s.conn
+}
+
+func (s *Iosession) dealDataCh() {
+	s.serv.wg.Add(1)
+	defer s.serv.wg.Done()
+	var msg interface{}
+	for s.serv.runnable && !s.closed {
+		select {
+		case msg = <-s.dataCh:
+			s.serv.filterChain.msgReceived(s, msg)
+		}
+	}
 }
 
 func (session *Iosession) readData() {
@@ -32,37 +45,40 @@ func (session *Iosession) readData() {
 		}
 		session.serv.wg.Done()
 	}()
+	var n int
+	var err error
 	for session.serv.runnable && !session.closed {
-		n, err := session.conn.Read(buffer)
+		n, err = session.conn.Read(buffer)
 		ioBuffer.PutBytes(buffer[:n])
 		if err != nil {
 			session.serv.filterChain.errorCaught(session, err)
 			session.Close()
 			return
 		}
+		err = session.serv.codecer.Decode(ioBuffer, session.dataCh)
+		if err != nil {
+			session.serv.filterChain.errorCaught(session, err)
+		}
 		session.serv.filterChain.msgReceived(session, ioBuffer)
 	}
 }
 
-func (this *Iosession) Write(message interface{}) error {
-	if this.serv.runnable && !this.closed {
-		if msg, ok := this.serv.filterChain.msgSend(this, message); ok {
-			if m, ok := msg.([]byte); ok {
-				_, err := this.conn.Write(m)
-				if err != nil {
-					this.serv.filterChain.errorCaught(this, err)
-					return err
-				}
-			} else {
-				err := errors.New("net.Conn.Write fail,param is not []byte type")
-				this.serv.filterChain.errorCaught(this, err)
+func (session *Iosession) Write(message interface{}) error {
+	if session.serv.runnable && !session.closed {
+		if msg, ok := session.serv.filterChain.msgSend(session, message); ok {
+			bs, err := session.serv.codecer.Encode(msg)
+			if err != nil {
 				return err
+			}
+			_, err = session.conn.Write(bs)
+			if err != nil {
+				session.serv.filterChain.errorCaught(session, err)
 			}
 		}
 		return nil
 	} else {
 		err := errors.New("Iosession is closed")
-		this.serv.filterChain.errorCaught(this, err)
+		session.serv.filterChain.errorCaught(session, err)
 		return err
 	}
 }

@@ -8,26 +8,21 @@ import (
 
 func main() {
 	s := golis.NewServer()
-	s.FilterChain().AddLast("codec", &codecFilter{}).AddLast("test", &filter{})
+	s.FilterChain().AddLast("test", &filter{})
+	s.SetCodecer(&echoProtocalCodec{})
 	s.RunOnPort("tcp", ":9090")
 }
 
-type codecFilter struct {
-	golis.IoFilterAdapter
+type echoProtocalCodec struct {
+	golis.ProtocalCodec
 }
 
-func (*codecFilter) Decode(message interface{}) (interface{}, bool) {
-	if buffer, ok := message.(*golis.Buffer); ok {
-		bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
-		buffer.ResetRead()
-		buffer.ResetWrite()
-		return bs, true
-	}
-	return message, false
-}
-
-func (*codecFilter) Encode(message interface{}) (interface{}, bool) {
-	return message, true
+func (*echoProtocalCodec) Decode(buffer *golis.Buffer, dataCh chan<- interface{}) error {
+	bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
+	buffer.ResetRead()
+	buffer.ResetWrite()
+	dataCh <- bs
+	return nil
 }
 
 type filter struct{}

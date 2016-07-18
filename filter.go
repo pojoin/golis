@@ -1,5 +1,7 @@
 package golis
 
+import "errors"
+
 type IoFilter interface {
 	SessionOpened(session *Iosession) bool
 	SessionClosed(session *Iosession) bool
@@ -17,16 +19,22 @@ func (*IoFilterAdapter) MsgSend(session *Iosession, message interface{}) bool   
 func (*IoFilterAdapter) MsgReceived(session *Iosession, message interface{}) bool { return true }
 
 type Codecer interface {
-	Decode(message interface{}) (interface{}, bool)
-	Encode(message interface{}) (interface{}, bool)
+	Decode(buffer *Buffer, dataCh chan<- interface{}) error
+	Encode(message interface{}) ([]byte, error)
 }
 
 type ProtocalCodec struct {
-	IoFilterAdapter
 }
 
-func (*ProtocalCodec) Decode(message interface{}) (interface{}, bool) { return message, true }
-func (*ProtocalCodec) Encode(message interface{}) (interface{}, bool) { return message, true }
+func (*ProtocalCodec) Decode(buffer *Buffer, dataCh chan<- interface{}) error {
+	return nil
+}
+func (*ProtocalCodec) Encode(message interface{}) ([]byte, error) {
+	if bs, ok := message.([]byte); ok {
+		return bs, nil
+	}
+	return nil, errors.New("codec failed")
+}
 
 type entry struct {
 	name   string
@@ -59,16 +67,8 @@ func (e *entry) sessionClosed(session *Iosession) bool {
 
 func (e *entry) msgReceived(session *Iosession, message interface{}) bool {
 	var flag bool
-	if codecer, ok := e.filter.(Codecer); ok {
-		if msg, ok := codecer.Decode(message); ok {
-			if flag = e.filter.MsgReceived(session, msg); flag && e.next != nil {
-				return e.next.msgReceived(session, msg)
-			}
-		}
-	} else {
-		if flag = e.filter.MsgReceived(session, message); flag && e.next != nil {
-			return e.next.msgReceived(session, message)
-		}
+	if flag = e.filter.MsgReceived(session, message); flag && e.next != nil {
+		return e.next.msgReceived(session, message)
 	}
 	return flag
 }
@@ -85,17 +85,8 @@ func (e *entry) errorCaught(session *Iosession, err error) bool {
 }
 func (e *entry) msgSend(session *Iosession, message interface{}) (interface{}, bool) {
 	var flag bool
-	if codecer, ok := e.filter.(Codecer); ok {
-		if msg, ok := codecer.Encode(message); ok {
-			if flag = e.filter.MsgSend(session, msg); flag && e.prev != nil {
-				_, ok = e.prev.msgSend(session, msg)
-				return msg, ok
-			}
-		}
-	} else {
-		if flag = e.filter.MsgSend(session, message); flag && e.prev != nil {
-			return e.prev.msgSend(session, message)
-		}
+	if flag = e.filter.MsgSend(session, message); flag && e.prev != nil {
+		return e.prev.msgSend(session, message)
 	}
 	return message, flag
 }
@@ -155,7 +146,9 @@ func (f *IoFilterChain) AddAfter(baseName, name string, filter IoFilter) *IoFilt
 			next:   tmp,
 			prev:   e,
 		}
-		tmp.prev = e.next
+		if tmp != nil {
+			tmp.prev = e.next
+		}
 	}
 	return f
 }
@@ -169,7 +162,9 @@ func (f *IoFilterChain) AddBefore(baseName, name string, filter IoFilter) *IoFil
 			next:   e,
 			prev:   tmp,
 		}
-		tmp.next = e.prev
+		if tmp != nil {
+			tmp.next = e.prev
+		}
 	}
 	return f
 }
