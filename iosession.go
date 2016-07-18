@@ -7,16 +7,34 @@ import (
 
 //Iosession
 type Iosession struct {
-	id     uint64
-	serv   *ioserv
-	conn   net.Conn
-	closed bool
-	Data   interface{}
-	dataCh chan interface{}
+	id        uint64
+	serv      *ioserv
+	conn      net.Conn
+	closed    bool
+	dataCh    chan interface{}
+	userId    interface{}
+	extraData map[string]interface{}
 }
 
 func (s *Iosession) Id() uint64 {
 	return s.id
+}
+
+func (session *Iosession) SetUserId(id interface{}) {
+	session.userId = id
+}
+
+func (session *Iosession) GetUserId() interface{} {
+	return session.userId
+}
+
+func (session *Iosession) ExtraData(key string) (value interface{}, ok bool) {
+	value, ok = session.extraData[key]
+	return
+}
+
+func (session *Iosession) SetExtraData(key string, value interface{}) {
+	session.extraData[key] = value
 }
 
 func (s *Iosession) Conn() net.Conn {
