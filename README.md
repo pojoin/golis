@@ -23,38 +23,27 @@ import (
 
 func main() {
 	s := golis.NewServer()
-	s.FilterChain().AddLast("codec", &codecFilter{}).AddLast("test", &filter{})
+	s.FilterChain().AddLast("test", &filter{})
+	s.SetCodecer(&echoProtocalCodec{})
 	s.RunOnPort("tcp", ":9090")
 }
 
-//定义IoFilter
-//并实现Codecer接口，用于拆包、解包
-type codecFilter struct {
-	golis.IoFilterAdapter
+type echoProtocalCodec struct {
+	golis.ProtocalCodec
 }
 
-
-//拆包
-func (*codecFilter) Decode(message interface{}) (interface{}, bool) {
-	if buffer, ok := message.(*golis.Buffer); ok {
-		bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
-		buffer.ResetRead()
-		buffer.ResetWrite()
-		return bs, true
-	}
-	return message, false
+func (*echoProtocalCodec) Decode(buffer *golis.Buffer, dataCh chan<- interface{}) error {
+	bs, _ := buffer.ReadBytes(buffer.GetWritePos() - buffer.GetReadPos())
+	buffer.ResetRead()
+	buffer.ResetWrite()
+	dataCh <- bs
+	return nil
 }
 
-//解包
-func (*codecFilter) Encode(message interface{}) (interface{}, bool) {
-	return message, true
-}
-
-//定义一个普通的IoFilter,继承自IoFilter
 type filter struct{}
 
 func (*filter) SessionOpened(session *golis.Iosession) bool {
-	fmt.Println("session opened,the client is ", session.GetConn().RemoteAddr().String())
+	fmt.Println("session opened,the client is ", session.Conn().RemoteAddr().String())
 	return true
 }
 
