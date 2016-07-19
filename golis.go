@@ -30,6 +30,7 @@ func (serv *ioserv) newIoSession(conn net.Conn) *Iosession {
 	session.conn = conn
 	session.serv = serv
 	session.closed = false
+	session.extraData = make(map[string]interface{})
 	session.dataCh = make(chan interface{}, 16)
 	session.id = atomic.AddUint64(&serv.Generator_id, 1)
 	go session.dealDataCh()

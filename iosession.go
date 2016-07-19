@@ -2,6 +2,7 @@ package golis
 
 import (
 	"errors"
+	"fmt"
 	"net"
 )
 
@@ -48,6 +49,7 @@ func (s *Iosession) dealDataCh() {
 	for s.serv.runnable && !s.closed {
 		select {
 		case msg = <-s.dataCh:
+			fmt.Println("收到消息")
 			s.serv.filterChain.msgReceived(s, msg)
 		}
 	}
@@ -77,7 +79,6 @@ func (session *Iosession) readData() {
 		if err != nil {
 			session.serv.filterChain.errorCaught(session, err)
 		}
-		session.serv.filterChain.msgReceived(session, ioBuffer)
 	}
 }
 
