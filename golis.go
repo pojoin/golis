@@ -9,7 +9,7 @@ import (
 )
 
 type ioserv struct {
-	Generator_id uint64
+	generator_id uint64
 	wg           sync.WaitGroup
 	runnable     bool
 	filterChain  *IoFilterChain
@@ -32,7 +32,7 @@ func (serv *ioserv) newIoSession(conn net.Conn) *Iosession {
 	session.closed = false
 	session.extraData = make(map[string]interface{})
 	session.dataCh = make(chan interface{}, 16)
-	session.id = atomic.AddUint64(&serv.Generator_id, 1)
+	session.id = atomic.AddUint64(&serv.generator_id, 1)
 	go session.dealDataCh()
 	go session.readData()
 	go session.serv.filterChain.sessionOpened(session)
@@ -103,7 +103,8 @@ func (s *server) Port() string {
 
 //get listen info
 func (s *server) ListenInfo() string {
-	return "the server listened protocal is " + s.protocal + " and listened addr is " + s.ioaddr
+	return fmt.Sprintf("server listened protocal is %v and listened addr is %v \n",
+		s.protocal, s.ioaddr)
 }
 
 type client struct {
