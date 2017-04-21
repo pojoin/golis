@@ -2,6 +2,7 @@ package golis
 
 import (
 	"errors"
+	"fmt"
 	"net"
 )
 
@@ -59,6 +60,9 @@ func (session *Iosession) readData() {
 	ioBuffer := NewBuffer()
 	buffer := make([]byte, 512)
 	defer func() {
+		if err := recover(); err != nil {
+			fmt.Println(err)
+		}
 		if !session.closed {
 			session.Close()
 		}
